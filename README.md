@@ -1,5 +1,9 @@
-# VNPT CA Linux
+# Lotus Sign Linux
 
-A WIP implementation of `VNPT CA Plugin` for Linux systems based on the publically available `.jar` binary with mapping for MacOS.
+A PKCS#11 tokens/smartcards signing service for Vietnamese Linux users.
 
-## Installation
+The project is based on reverse engineering the implementation across many programs that DO THE SAME THING.
+
+## Support roadmap
+- [ ] `(Ongoing)` VNPT CA Plugin: Used for VNPT products, for example, VNEdu.
+- [ ] `(Planned)` CTSigningHub: Used for Vietnam's Online Public Services.

@@ -1,5 +1,6 @@
 pub mod consts;
 pub mod routes;
+pub mod token;
 pub mod plugin;
 pub mod schema;
 
@@ -9,7 +10,11 @@ use axum::{ Router, routing::get };
 use axum_server::tls_rustls::RustlsConfig;
 use tokio::{ fs::create_dir, process };
 
-pub struct AppState {}
+use crate::plugin::PluginCommands;
+
+pub struct AppState {
+    pub plugin: PluginCommands,
+}
 
 /// Must be called first for any interaction with the router.
 pub async fn init() -> Result<(), ()> {
@@ -97,7 +102,7 @@ pub async fn app() -> Router {
     tracing::info!("Initializing server state...");
     let boot_time = Instant::now();
 
-    let app_state = Arc::new(AppState {});
+    let app_state = Arc::new(AppState { plugin: PluginCommands {} });
 
     tracing::info!(
         "Server started succesfully. (Boot time: {}ms)",
