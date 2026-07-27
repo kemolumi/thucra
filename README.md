@@ -1,9 +1,14 @@
-# Lotus Sign Linux
+# Thực ra...
 
-A PKCS#11 tokens/smartcards signing service for Vietnamese Linux users.
+<sub>Also avaliable in: ENGISH</sub>
 
-The project is based on reverse engineering the implementation across many programs that DO THE SAME THING.
+Xác "thực `>-<` ra"?
 
-## Support roadmap
-- [ ] `(Ongoing)` VNPT CA Plugin: Used for VNPT products, for example, VNEdu.
-- [ ] `(Planned)` CTSigningHub: Used for Vietnam's Online Public Services.
+Phần mềm dịch vụ ký số PKCS#11 cho hệ điều hành Linux với dự kiến hỗ trợ Windows/MacOS.
+
+Dự án này dựa vào việc dịch ngược và quan sát giao tiếp của các phần mềm có sẵn ở Việt Nam, nên nếu những nhà cung cấp phần mềm chính thức thay đổi cách giao tiếp thì phần mềm này sẽ đến chậm hơn.
+
+## Các dịch vụ hỗ trợ
+- [ ] `(Đang thực hiện)` VNPT CA Plugin: Sử dụng cho các sản phẩm của VNPT, ví dụ như VNEdu.
+- [ ] `(Dự kiến)` CTSigningHub: Sử dụng cho Dịch Vụ Công.
+
