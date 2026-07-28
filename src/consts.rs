@@ -1,3 +1,3 @@
-use std::{net::SocketAddr, sync::LazyLock};
+use std::ops::RangeInclusive;
 
-pub const HOST: LazyLock<SocketAddr> = LazyLock::new(|| "127.0.0.1:4433".parse().unwrap());
+pub const VNPT_CA_PORT_RANGE: RangeInclusive<u16> = 4433..=4435;
