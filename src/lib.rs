@@ -1,24 +1,36 @@
 pub mod consts;
-pub mod routes;
-pub mod token;
-pub mod plugin;
-pub mod schema;
+pub mod vnpt;
+pub mod app;
 
-use std::{ path::Path, sync::Arc, time::Instant };
-
-use axum::{ Router, routing::get };
-use axum_server::tls_rustls::RustlsConfig;
+use std::path::Path;
 use tokio::{ fs::create_dir, process };
-
-use crate::plugin::PluginCommands;
-
-pub struct AppState {
-    pub plugin: PluginCommands,
-}
+use tracing_appender::non_blocking::WorkerGuard;
+use tracing_subscriber::{ layer::SubscriberExt, util::SubscriberInitExt };
 
 /// Must be called first for any interaction with the router.
-pub async fn init() -> Result<(), ()> {
-    tracing_subscriber::fmt().init();
+pub async fn init() -> Result<Option<WorkerGuard>, ()> {
+    let mut guard = None;
+    match std::env::home_dir() {
+        Some(home) => {
+            let file_appender = tracing_appender::rolling::daily(
+                format!("{}/.local/share/thucra/logs", home.as_os_str().to_str().unwrap()),
+                "thucra.log"
+            );
+            let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+            guard = Some(_guard);
+
+            tracing_subscriber::Registry
+                ::default()
+                .with(tracing_subscriber::fmt::layer().with_ansi(false).with_writer(non_blocking))
+                .with(tracing_subscriber::fmt::layer())
+                .init();
+        }
+        None => {
+            eprintln!("No use home folder found, fallback to console logging.");
+            tracing_subscriber::fmt::init();
+        }
+    }
+
     rustls::crypto::ring::default_provider().install_default().unwrap();
 
     tracing::info!("Checking SSL store...");
@@ -26,7 +38,7 @@ pub async fn init() -> Result<(), ()> {
     match Path::new("store/key.pem").exists() && Path::new("store/cert.pem").exists() {
         true => {
             tracing::info!("SSL found. Launching server...");
-            return Ok(());
+            return Ok(guard);
         }
         false => {
             tracing::warn!("No SSL store found, generating new ones...");
@@ -82,32 +94,5 @@ pub async fn init() -> Result<(), ()> {
         }
     }
 
-    return Ok(());
-}
-
-/// The core setup, this is what `main.rs` should call.
-pub async fn core() {
-    tracing::info!("Hello, world (world here is {})! :3", *consts::HOST);
-
-    tracing::info!("Serving in secure context...");
-    let tls_config = RustlsConfig::from_pem_file("store/cert.pem", "store/key.pem").await.unwrap();
-    axum_server
-        ::bind_rustls(*consts::HOST, tls_config)
-        .serve(app().await.into_make_service()).await
-        .unwrap();
-}
-
-/// Creates an app.
-pub async fn app() -> Router {
-    tracing::info!("Initializing server state...");
-    let boot_time = Instant::now();
-
-    let app_state = Arc::new(AppState { plugin: PluginCommands {} });
-
-    tracing::info!(
-        "Server started succesfully. (Boot time: {}ms)",
-        boot_time.elapsed().as_millis()
-    );
-
-    Router::new().route("/plugin", get(routes::plugin::handler))
+    return Ok(guard);
 }
