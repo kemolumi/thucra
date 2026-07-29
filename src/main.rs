@@ -1,120 +1,68 @@
-use gtk4::{
-    gio::prelude::{ ApplicationExt, ApplicationExtManual },
-    prelude::{ BoxExt, ButtonExt, GtkWindowExt },
-};
+use std::sync::Arc;
 
-use libadwaita::{ ActionRow, prelude::{ ActionRowExt, AdwApplicationWindowExt } };
-#[cfg(not(target_env = "msvc"))]
-use tikv_jemallocator::Jemalloc;
+use gtk4::prelude::*;
+use relm4::prelude::*;
+use thucra::{ app::home::HomeUi, vnpt::VnptCa };
+use tokio::sync::{ Mutex, mpsc };
 
-#[cfg(not(target_env = "msvc"))]
-#[global_allocator]
-static GLOBAL: Jemalloc = Jemalloc;
-
-#[tokio::main]
-async fn main() {
-    match lsl::init().await {
-        Ok(_) => {}
+fn main() {
+    let _guard = match thucra::init() {
+        Ok(guard) => guard,
         Err(_) => {
-            tracing::error!("Can't launch server :(");
-            return;
-        }
-    }
-
-    let ctx = match pcsc::Context::establish(pcsc::Scope::User) {
-        Ok(ctx) => ctx,
-        Err(err) => {
-            tracing::error!("Failed to establish context: {}", err);
+            tracing::error!("Application initialize failed.");
             return;
         }
     };
 
-    let mut readers_buf = [0; 2048];
-    let mut readers = match ctx.list_readers(&mut readers_buf) {
-        Ok(readers) => readers,
-        Err(err) => {
-            tracing::error!("Failed to list readers: {}", err);
-            return;
-        }
-    };
+    let app = RelmApp::new("com.kemolumi.thucra");
 
-    let reader = match readers.next() {
-        Some(reader) => reader,
-        None => {
-            tracing::error!("No readers are connected.");
-            return;
-        }
-    };
-    tracing::info!("Using reader: {:?}", reader);
+    let settings = gtk::Settings::default().unwrap();
+    apply_css(settings.is_gtk_application_prefer_dark_theme());
 
-    let card = match ctx.connect(reader, pcsc::ShareMode::Shared, pcsc::Protocols::ANY) {
-        Ok(card) => card,
-        Err(pcsc::Error::NoSmartcard) => {
-            tracing::error!("A smartcard is not present in the reader.");
-            return;
-        }
-        Err(err) => {
-            tracing::error!("Failed to connect to card: {}", err);
-            return;
-        }
-    };
-
-    let apdu = b"\x00\xa4\x04\x00\x0A\xA0\x00\x00\x00\x62\x03\x01\x0C\x06\x01";
-    tracing::info!("Sending APDU: {:?}", apdu);
-    let mut rapdu_buf = [0; pcsc::MAX_BUFFER_SIZE];
-    let rapdu = match card.transmit(apdu, &mut rapdu_buf) {
-        Ok(rapdu) => rapdu,
-        Err(err) => {
-            tracing::error!("Failed to transmit APDU command to card: {}", err);
-            return;
-        }
-    };
-    tracing::info!("APDU response: {:?}", rapdu);
-
-    let application = libadwaita::Application
-        ::builder()
-        .application_id("com.example.FirstGtkApp")
-        .build();
-
-    application.connect_activate(|app| {
-        // ActionRows are only available in Adwaita
-        let row = ActionRow::builder().activatable(true).title("Click me").build();
-        row.connect_activated(|_| {
-            eprintln!("Clicked!");
-        });
-
-        let list = gtk4::ListBox
-            ::builder()
-            .margin_top(32)
-            .margin_end(32)
-            .margin_bottom(32)
-            .margin_start(32)
-            .selection_mode(gtk4::SelectionMode::None)
-            // makes the list look nicer
-            .css_classes(vec![String::from("boxed-list")])
-            .build();
-        list.append(&row);
-
-        // Combine the content in a box
-        let content = gtk4::Box::new(gtk4::Orientation::Vertical, 0);
-        // Adwaitas' ApplicationWindow does not include a HeaderBar
-        content.append(&libadwaita::HeaderBar::new());
-        content.append(&list);
-
-        let window = libadwaita::ApplicationWindow
-            ::builder()
-            .application(app)
-            .decorated(true)
-            .title("")
-            .default_width(350)
-            .default_height(70)
-            .content(&content)
-            .build();
-
-        window.present();
+    settings.connect_gtk_application_prefer_dark_theme_notify(|settings| {
+        apply_css(settings.is_gtk_application_prefer_dark_theme());
     });
 
-    application.run();
+    let (vnpt_ca_restart_trip, vnpt_ca_restart_stopper) = mpsc::channel(1);
+    let (signinghub_restart_trip, signinghub_restart_stopper) = mpsc::channel(1);
 
-    lsl::core().await;
+    let vnpt_ca_restart_stopper = Arc::new(Mutex::new(vnpt_ca_restart_stopper));
+
+    relm4::main_application().connect_startup(move |_| {
+        let use_vnpt_ca_restart_stopper = vnpt_ca_restart_stopper.clone();
+        std::thread::spawn(move || {
+            tokio_runtime(async {
+                let mut vnpt_ca = VnptCa::new(use_vnpt_ca_restart_stopper).await;
+                vnpt_ca.launch().await;
+            });
+        });
+    });
+
+    relm4::main_application().connect_activate(move |app| {
+        let windows = app.windows();
+
+        for window in &windows {
+            if window.is_visible() {
+                window.present();
+                tracing::info!(
+                    "Already have an active window, sending user to the closest window."
+                );
+                return;
+            }
+        }
+    });
+
+    app.run::<HomeUi>(HomeUi { vnpt_ca_restart_trip, signinghub_restart_trip });
+}
+
+fn apply_css(is_dark: bool) {
+    if is_dark {
+        relm4::set_global_css(include_str!("./app/style.dark.css"));
+    } else {
+        relm4::set_global_css(include_str!("./app/style.light.css"));
+    }
+}
+
+fn tokio_runtime<T: Future>(future: T) {
+    tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap().block_on(future);
 }

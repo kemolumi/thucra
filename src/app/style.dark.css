@@ -1,0 +1,12 @@
+button.dangerous {
+  color: #ff938b;
+  background-color: #533b3c;
+}
+
+button.dangerous:hover {
+  background-color: #614041;
+}
+
+button.dangerous:active {
+  background-color: #894f4f;
+}
