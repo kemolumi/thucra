@@ -1,6 +1,6 @@
 use serde_json::Value;
 
-use crate::schema::{ client_request::ClientRequest, server_response::ServerJsonResponse };
+use crate::vnpt::schema::{ client_request::ClientRequest, server_response::ServerJsonResponse };
 
 pub async fn invoke(request: &ClientRequest) -> Value {
     if request.args.len() == 0 || request.args[0].len() == 0 {

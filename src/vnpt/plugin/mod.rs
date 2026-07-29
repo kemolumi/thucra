@@ -4,7 +4,7 @@ pub mod license;
 use axum::extract::ws;
 use serde_json::Value;
 
-use crate::schema::client_request::ClientRequest;
+use crate::vnpt::schema::client_request::ClientRequest;
 
 #[derive(Debug, Clone)]
 pub struct PluginCommands {}
