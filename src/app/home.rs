@@ -1,12 +1,8 @@
 use gtk4::prelude::*;
 use libadwaita::prelude::*;
 use relm4::prelude::*;
-use tokio::sync::mpsc;
 
-pub struct HomeUi {
-    pub vnpt_ca_restart_trip: mpsc::Sender<()>,
-    pub signinghub_restart_trip: mpsc::Sender<()>,
-}
+pub struct HomeUi {}
 
 #[derive(Debug)]
 pub enum HomeMessage {
@@ -83,11 +79,11 @@ impl SimpleComponent for HomeUi {
     }
 
     fn init(
-        counter: Self::Init,
+        init: Self::Init,
         root: Self::Root,
         sender: ComponentSender<Self>
     ) -> ComponentParts<Self> {
-        let model = counter;
+        let model = init;
 
         let widgets = view_output!();
 
@@ -96,9 +92,7 @@ impl SimpleComponent for HomeUi {
 
     fn update(&mut self, msg: Self::Input, _sender: ComponentSender<Self>) {
         match msg {
-            HomeMessage::RestartVnpt => {
-                self.vnpt_ca_restart_trip.blocking_send(());
-            }
+            HomeMessage::RestartVnpt => {}
             HomeMessage::RestartSigningHub => {
                 tracing::info!("Hub");
             }

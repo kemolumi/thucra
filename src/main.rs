@@ -1,9 +1,6 @@
-use std::sync::Arc;
-
 use gtk4::prelude::*;
 use relm4::prelude::*;
 use thucra::{ app::home::HomeUi, vnpt::VnptCa };
-use tokio::sync::{ Mutex, mpsc };
 
 fn main() {
     let _guard = match thucra::init() {
@@ -23,16 +20,10 @@ fn main() {
         apply_css(settings.is_gtk_application_prefer_dark_theme());
     });
 
-    let (vnpt_ca_restart_trip, vnpt_ca_restart_stopper) = mpsc::channel(1);
-    let (signinghub_restart_trip, signinghub_restart_stopper) = mpsc::channel(1);
-
-    let vnpt_ca_restart_stopper = Arc::new(Mutex::new(vnpt_ca_restart_stopper));
-
     relm4::main_application().connect_startup(move |_| {
-        let use_vnpt_ca_restart_stopper = vnpt_ca_restart_stopper.clone();
         std::thread::spawn(move || {
             tokio_runtime(async {
-                let mut vnpt_ca = VnptCa::new(use_vnpt_ca_restart_stopper).await;
+                let mut vnpt_ca = VnptCa::new().await;
                 vnpt_ca.launch().await;
             });
         });
@@ -52,7 +43,7 @@ fn main() {
         }
     });
 
-    app.run::<HomeUi>(HomeUi { vnpt_ca_restart_trip, signinghub_restart_trip });
+    app.run::<HomeUi>(HomeUi {});
 }
 
 fn apply_css(is_dark: bool) {
