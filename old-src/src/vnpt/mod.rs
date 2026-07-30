@@ -5,7 +5,6 @@ use axum_server::tls_rustls::RustlsConfig;
 
 use crate::{ consts, vnpt::plugin::PluginCommands };
 
-pub mod token;
 pub mod schema;
 pub mod routes;
 pub mod plugin;

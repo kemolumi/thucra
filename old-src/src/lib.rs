@@ -1,13 +1,14 @@
 pub mod consts;
 pub mod vnpt;
 pub mod app;
+pub mod token;
 
 use std::path::Path;
 use tracing_appender::non_blocking::WorkerGuard;
 use tracing_subscriber::{ layer::SubscriberExt, util::SubscriberInitExt };
 
 /// Must be called first for any interaction with the router.
-pub fn init() -> Result<WorkerGuard, ()> {
+pub fn init() -> Result<(WorkerGuard, pcsc::Context), ()> {
     let Some(home) = std::env::home_dir() else {
         tracing::error!("No user home folder found.");
         return Err(());
@@ -22,7 +23,7 @@ pub fn init() -> Result<WorkerGuard, ()> {
         format!("{app_folder}/logs"),
         "thucra.log"
     );
-    let (non_blocking, _guard) = tracing_appender::non_blocking(file_appender);
+    let (non_blocking, guard) = tracing_appender::non_blocking(file_appender);
 
     tracing_subscriber::Registry
         ::default()
@@ -32,6 +33,17 @@ pub fn init() -> Result<WorkerGuard, ()> {
 
     rustls::crypto::ring::default_provider().install_default().unwrap();
 
+    tracing::info!("Connecting to PC/SC context...");
+
+    let context = match pcsc::Context::establish(pcsc::Scope::User) {
+        Ok(context) => context,
+        Err(error) => {
+            tracing::error!("Failed to establish context: {}", error);
+            return Err(());
+        }
+    };
+
+    tracing::info!("PC/SC context connected.");
     tracing::info!("Checking SSL store...");
 
     let (key_location, cert_location) = (
@@ -42,7 +54,7 @@ pub fn init() -> Result<WorkerGuard, ()> {
     match Path::new(&key_location).exists() && Path::new(&cert_location).exists() {
         true => {
             tracing::info!("SSL found.");
-            return Ok(_guard);
+            return Ok((guard, context));
         }
         false => {
             tracing::warn!("No SSL store found, generating new ones...");
@@ -98,5 +110,5 @@ pub fn init() -> Result<WorkerGuard, ()> {
         }
     }
 
-    return Ok(_guard);
+    return Ok((guard, context));
 }

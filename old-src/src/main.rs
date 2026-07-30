@@ -3,8 +3,8 @@ use relm4::prelude::*;
 use thucra::{ app::home::HomeUi, vnpt::VnptCa };
 
 fn main() {
-    let _guard = match thucra::init() {
-        Ok(guard) => guard,
+    let (_guard, pcsc_context) = match thucra::init() {
+        Ok(info) => info,
         Err(_) => {
             tracing::error!("Application initialize failed.");
             return;
@@ -21,10 +21,15 @@ fn main() {
     });
 
     relm4::main_application().connect_startup(move |_| {
+        let pcsc_context = pcsc_context.clone();
+
+        std::thread::spawn(move || {
+            
+        });
+
         std::thread::spawn(move || {
             tokio_runtime(async {
-                let mut vnpt_ca = VnptCa::new().await;
-                vnpt_ca.launch().await;
+                run_services().await;
             });
         });
     });
@@ -43,7 +48,7 @@ fn main() {
         }
     });
 
-    app.run::<HomeUi>(HomeUi {});
+    app.run::<HomeUi>(true);
 }
 
 fn apply_css(is_dark: bool) {
@@ -56,4 +61,13 @@ fn apply_css(is_dark: bool) {
 
 fn tokio_runtime<T: Future>(future: T) {
     tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap().block_on(future);
+}
+
+async fn run_services() {
+    let vnpt_ca_task = tokio::task::spawn(async {
+        let mut vnpt_ca = VnptCa::new().await;
+        vnpt_ca.launch().await;
+    });
+
+    vnpt_ca_task.await;
 }

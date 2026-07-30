@@ -1,3 +1,9 @@
+headerbar {
+  background: transparent;
+  border-bottom: none;
+  box-shadow: none;
+}
+
 button.dangerous {
   color: #c30000;
   background-color: #eed1d1;
